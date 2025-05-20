@@ -95,7 +95,7 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
   
   // Agregar una subpregunta a una opción
   const handleAddSubQuestion = (optionId: string) => {
-    const newQuestion: Question = {
+    const newSubQuestion: Question = {
       id: uuidv4(),
       text: '',
       type: 'text',
@@ -106,14 +106,9 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
     };
     
     // Agregar la nueva subpregunta a la lista de todas las preguntas
-    const updatedQuestions = [...allQuestions, newQuestion];
-    
-    // Actualizar la pregunta padre y cerrar el formulario de subpregunta
-    onUpdate({...question});
+    const updatedQuestions = [...allQuestions, newSubQuestion];
+    onUpdate(newSubQuestion);
     setShowSubQuestionForm(null);
-    
-    // Notificar al componente padre para que actualice todas las preguntas
-    onUpdate(newQuestion);
   };
   
   // Buscar subpreguntas para una opción específica
@@ -176,12 +171,15 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
             
             {/* Renderizar subpreguntas existentes para esta opción */}
             {getSubQuestionsForOption(option.id).map((subQuestion) => (
-              <div key={subQuestion.id} className="pl-6 border-l-2 border-blue-300">
+              <div key={subQuestion.id} className="pl-6 mt-2 border-l-2 border-blue-300">
                 <QuestionEditor
                   question={subQuestion}
                   allQuestions={allQuestions}
                   onUpdate={onUpdate}
-                  onDelete={() => onDelete()}
+                  onDelete={() => {
+                    const updatedQuestions = allQuestions.filter(q => q.id !== subQuestion.id);
+                    onUpdate({...question});
+                  }}
                   onMoveUp={() => {}}
                   onMoveDown={() => {}}
                   canMoveUp={false}
