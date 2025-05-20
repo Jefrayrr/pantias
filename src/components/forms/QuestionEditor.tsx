@@ -98,11 +98,12 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
     const newSubQuestion: Question = {
       id: uuidv4(),
       text: '',
-      type: 'text',
+      type: question.type, // Usar el mismo tipo que la pregunta padre
       required: false,
       includeInPowerBI: false,
       parentId: question.id,
-      parentOptionId: optionId
+      parentOptionId: optionId,
+      options: question.options ? question.options.map(opt => ({ ...opt, id: uuidv4() })) : undefined
     };
     
     // Agregar la nueva subpregunta a la lista de todas las preguntas
