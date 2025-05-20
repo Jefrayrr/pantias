@@ -30,6 +30,7 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(true);
   const [showSubQuestionForm, setShowSubQuestionForm] = useState<string | null>(null);
+  const [newSubQuestion, setNewSubQuestion] = useState<Question | null>(null);
   
   // Determinar si este tipo de pregunta puede tener opciones
   const hasOptions = ['select', 'multiselect'].includes(question.type);
@@ -93,22 +94,32 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
     });
   };
   
-  // Agregar una subpregunta a una opción
-  const handleAddSubQuestion = (optionId: string) => {
-    const newSubQuestion: Question = {
+  // Iniciar la creación de una subpregunta
+  const handleStartSubQuestion = (optionId: string) => {
+    const subQuestion: Question = {
       id: uuidv4(),
       text: '',
-      type: question.type, // Usar el mismo tipo que la pregunta padre
+      type: 'text',
       required: false,
       includeInPowerBI: false,
       parentId: question.id,
-      parentOptionId: optionId,
-      options: question.options ? question.options.map(opt => ({ ...opt, id: uuidv4() })) : undefined
+      parentOptionId: optionId
     };
+    setNewSubQuestion(subQuestion);
+    setShowSubQuestionForm(optionId);
+  };
+  
+  // Actualizar la subpregunta en creación
+  const handleUpdateNewSubQuestion = (updatedSubQuestion: Question) => {
+    setNewSubQuestion(updatedSubQuestion);
+  };
+  
+  // Guardar la nueva subpregunta
+  const handleSaveSubQuestion = () => {
+    if (!newSubQuestion) return;
     
-    // Agregar la nueva subpregunta a la lista de todas las preguntas
-    const updatedQuestions = [...allQuestions, newSubQuestion];
     onUpdate(newSubQuestion);
+    setNewSubQuestion(null);
     setShowSubQuestionForm(null);
   };
   
@@ -150,23 +161,50 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
             <div className="flex items-center pl-4">
               <button
                 type="button"
-                onClick={() => setShowSubQuestionForm(option.id)}
+                onClick={() => handleStartSubQuestion(option.id)}
                 className="text-sm flex items-center text-blue-600 hover:text-blue-800"
               >
                 <Plus size={14} className="mr-1" /> {t('add_sub_question')}
               </button>
             </div>
             
-            {/* Mostrar formulario para agregar subpregunta */}
-            {showSubQuestionForm === option.id && (
-              <div className="pl-6 mt-2 p-3 border-l-2 border-blue-300 bg-blue-50 rounded">
-                <button
-                  type="button"
-                  onClick={() => handleAddSubQuestion(option.id)}
-                  className="w-full text-left text-sm px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  <Plus size={14} className="inline mr-1" /> Añadir nueva subpregunta
-                </button>
+            {/* Editor de subpregunta */}
+            {showSubQuestionForm === option.id && newSubQuestion && (
+              <div className="pl-6 mt-2 p-4 border-l-2 border-blue-300 bg-blue-50 rounded">
+                <QuestionEditor
+                  question={newSubQuestion}
+                  allQuestions={allQuestions}
+                  onUpdate={handleUpdateNewSubQuestion}
+                  onDelete={() => {
+                    setNewSubQuestion(null);
+                    setShowSubQuestionForm(null);
+                  }}
+                  onMoveUp={() => {}}
+                  onMoveDown={() => {}}
+                  canMoveUp={false}
+                  canMoveDown={false}
+                  nestLevel={nestLevel + 1}
+                />
+                
+                <div className="mt-4 flex justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewSubQuestion(null);
+                      setShowSubQuestionForm(null);
+                    }}
+                    className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveSubQuestion}
+                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Guardar Subpregunta
+                  </button>
+                </div>
               </div>
             )}
             
