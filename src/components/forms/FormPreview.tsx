@@ -6,7 +6,7 @@ import { FormResponse, QuestionResponse, Question } from '../../types';
 import Spinner from '../ui/Spinner';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save, Download } from 'lucide-react';
-import { exportToExcel } from '../../utils/excelUtils';
+import { generateOfflineForm } from '../../utils/offlineFormUtils';
 
 const FormPreview: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,34 +24,28 @@ const FormPreview: React.FC = () => {
     }
   }, [id]);
   
-  // Filtrar las preguntas que deben mostrarse según las respuestas actuales
   const getVisibleQuestions = () => {
-    if (!currentForm) return [];
+    if (!currentForm?.questions) return [];
     
     return currentForm.questions.filter(question => {
-      // Si no es una subpregunta, siempre es visible
+      // If it's a main question (no parent), always show it
       if (!question.parentId) {
         return true;
       }
       
-      // Es una subpregunta, buscar la pregunta padre
+      // Find the parent question
       const parentQuestion = currentForm.questions.find(q => q.id === question.parentId);
       if (!parentQuestion) return false;
       
-      // Si la pregunta padre no es de tipo selección, no mostrar subpreguntas
-      if (!['select', 'multiselect'].includes(parentQuestion.type)) {
-        return false;
-      }
-      
-      // Obtener la respuesta actual para la pregunta padre
+      // Get the parent's response
       const parentResponse = responses[parentQuestion.id];
       
-      // Para preguntas de selección única
+      // For select questions
       if (parentQuestion.type === 'select') {
         return parentResponse === question.parentOptionId;
       }
       
-      // Para preguntas de selección múltiple
+      // For multiselect questions
       if (parentQuestion.type === 'multiselect') {
         return Array.isArray(parentResponse) && parentResponse.includes(question.parentOptionId);
       }
@@ -61,9 +55,23 @@ const FormPreview: React.FC = () => {
   };
   
   const handleInputChange = (questionId: string, value: any) => {
-    setResponses(prev => ({ ...prev, [questionId]: value }));
+    setResponses(prev => {
+      const newResponses = { ...prev, [questionId]: value };
+      
+      // Clear responses for sub-questions if parent's value changes
+      const question = currentForm?.questions?.find(q => q.id === questionId);
+      if (question && ['select', 'multiselect'].includes(question.type)) {
+        const subQuestions = currentForm?.questions?.filter(q => q.parentId === questionId);
+        subQuestions?.forEach(subQ => {
+          if (newResponses[subQ.id]) {
+            delete newResponses[subQ.id];
+          }
+        });
+      }
+      
+      return newResponses;
+    });
     
-    // Limpiar error si existe
     if (errors[questionId]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -106,11 +114,15 @@ const FormPreview: React.FC = () => {
     setSubmitting(true);
     
     try {
-      // Convertir las respuestas al formato esperado
-      const questionResponses: QuestionResponse[] = Object.entries(responses).map(([questionId, value]) => ({
-        questionId,
-        value
-      }));
+      const questionResponses: QuestionResponse[] = Object.entries(responses)
+        .filter(([questionId]) => {
+          const question = currentForm.questions.find(q => q.id === questionId);
+          return question && getVisibleQuestions().includes(question);
+        })
+        .map(([questionId, value]) => ({
+          questionId,
+          value
+        }));
       
       const formResponse: Omit<FormResponse, 'id' | 'createdAt'> = {
         formId: id,
@@ -130,16 +142,20 @@ const FormPreview: React.FC = () => {
     }
   };
   
-  const handleExportBlank = async () => {
+  const handleExportOfflineForm = async () => {
     if (!currentForm) return;
     
     try {
-      const excelData = {
-        form: currentForm,
-        responses: {}
-      };
-      
-      await exportToExcel([excelData], `formulario_${currentForm.name.replace(/\s+/g, '_').toLowerCase()}.xlsx`);
+      const htmlContent = await generateOfflineForm(currentForm);
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `formulario_${currentForm.name.replace(/\s+/g, '_').toLowerCase()}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       toast.success('Formulario exportado correctamente');
     } catch (error) {
       console.error('Error exporting form:', error);
@@ -147,7 +163,6 @@ const FormPreview: React.FC = () => {
     }
   };
   
-  // Renderizar los componentes de entrada según el tipo de pregunta
   const renderQuestionInput = (question: Question) => {
     switch (question.type) {
       case 'text':
@@ -284,16 +299,18 @@ const FormPreview: React.FC = () => {
           
           <button
             type="button"
-            onClick={handleExportBlank}
+            onClick={handleExportOfflineForm}
             className="mt-4 md:mt-0 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors flex items-center"
           >
-            <Download size={16} className="mr-2" /> Exportar para completar sin conexión
+            <Download size={16} className="mr-2" /> Exportar formulario offline
           </button>
         </div>
         
         <div className="space-y-8 mt-8">
           {getVisibleQuestions().map((question) => (
-            <div key={question.id} className="border-b border-gray-200 pb-6">
+            <div key={question.id} className={`border-b border-gray-200 pb-6 ${
+              question.parentId ? 'ml-8 border-l-2 border-l-green-200 pl-4' : ''
+            }`}>
               <div className="mb-2 flex items-start">
                 <label className="block text-gray-800 font-medium">
                   {question.text}
@@ -319,7 +336,7 @@ const FormPreview: React.FC = () => {
             className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center"
           >
             {submitting ? (
-              <Spinner size="sm" color="white" />
+              <Spinner size="sm\" color="white" />
             ) : (
               <>
                 <Save size={16} className="mr-2" /> Guardar Respuestas
