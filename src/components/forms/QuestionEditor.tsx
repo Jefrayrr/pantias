@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import { Question, QuestionType, Option } from '../../types';
-import { ChevronUp, ChevronDown, Plus, Trash2, MoveVertical, ArrowDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, Plus, Trash2 } from 'lucide-react';
 
 interface QuestionEditorProps {
   question: Question;
@@ -32,19 +32,15 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
   const [showSubQuestionForm, setShowSubQuestionForm] = useState<string | null>(null);
   const [newSubQuestion, setNewSubQuestion] = useState<Question | null>(null);
   
-  // Determinar si este tipo de pregunta puede tener opciones
   const hasOptions = ['select', 'multiselect'].includes(question.type);
   
-  // Manejar cambio en el tipo de pregunta
   const handleTypeChange = (newType: QuestionType) => {
     let updatedQuestion: Question = { ...question, type: newType };
     
-    // Si el nuevo tipo no soporta opciones, eliminar las opciones
     if (!['select', 'multiselect'].includes(newType) && updatedQuestion.options) {
       delete updatedQuestion.options;
     }
     
-    // Si el nuevo tipo soporta opciones y no hay opciones, inicializar con una opción
     if (['select', 'multiselect'].includes(newType) && !updatedQuestion.options) {
       updatedQuestion.options = [{ id: uuidv4(), text: '' }];
     }
@@ -52,17 +48,14 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
     onUpdate(updatedQuestion);
   };
   
-  // Agregar una nueva opción a la pregunta
   const handleAddOption = () => {
     const newOption: Option = { id: uuidv4(), text: '' };
-    
     onUpdate({
       ...question,
       options: [...(question.options || []), newOption]
     });
   };
   
-  // Actualizar texto de una opción existente
   const handleUpdateOption = (optionId: string, text: string) => {
     if (!question.options) return;
     
@@ -76,16 +69,14 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
     });
   };
   
-  // Eliminar una opción
   const handleDeleteOption = (optionId: string) => {
     if (!question.options) return;
     
-    // Encontrar todas las subpreguntas relacionadas a esta opción
+    // Find and remove all sub-questions related to this option
     const subQuestionIds = allQuestions
       .filter(q => q.parentOptionId === optionId)
       .map(q => q.id);
     
-    // Eliminar la opción y actualizar la pregunta
     const updatedOptions = question.options.filter(opt => opt.id !== optionId);
     
     onUpdate({
@@ -94,9 +85,8 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
     });
   };
   
-  // Iniciar la creación de una subpregunta
   const handleStartSubQuestion = (optionId: string) => {
-    const subQuestion: Question = {
+    const newQuestion: Question = {
       id: uuidv4(),
       text: '',
       type: 'text',
@@ -105,30 +95,23 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
       parentId: question.id,
       parentOptionId: optionId
     };
-    setNewSubQuestion(subQuestion);
+    setNewSubQuestion(newQuestion);
     setShowSubQuestionForm(optionId);
   };
   
-  // Actualizar la subpregunta en creación
-  const handleUpdateNewSubQuestion = (updatedSubQuestion: Question) => {
-    setNewSubQuestion(updatedSubQuestion);
-  };
-  
-  // Guardar la nueva subpregunta
   const handleSaveSubQuestion = () => {
     if (!newSubQuestion) return;
     
+    // Add the sub-question to allQuestions
     onUpdate(newSubQuestion);
     setNewSubQuestion(null);
     setShowSubQuestionForm(null);
   };
   
-  // Buscar subpreguntas para una opción específica
   const getSubQuestionsForOption = (optionId: string) => {
     return allQuestions.filter(q => q.parentOptionId === optionId);
   };
   
-  // Renderizar las opciones de selección para preguntas de tipo select/multiselect
   const renderOptions = () => {
     if (!hasOptions || !question.options) return null;
     
@@ -157,24 +140,24 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
               </button>
             </div>
             
-            {/* Botón para agregar subpregunta a esta opción */}
+            {/* Sub-question controls */}
             <div className="flex items-center pl-4">
               <button
                 type="button"
                 onClick={() => handleStartSubQuestion(option.id)}
                 className="text-sm flex items-center text-blue-600 hover:text-blue-800"
               >
-                <Plus size={14} className="mr-1" /> {t('add_sub_question')}
+                <Plus size={14} className="mr-1" /> Agregar Subpregunta
               </button>
             </div>
             
-            {/* Editor de subpregunta */}
+            {/* Sub-question editor */}
             {showSubQuestionForm === option.id && newSubQuestion && (
               <div className="pl-6 mt-2 p-4 border-l-2 border-blue-300 bg-blue-50 rounded">
                 <QuestionEditor
                   question={newSubQuestion}
                   allQuestions={allQuestions}
-                  onUpdate={handleUpdateNewSubQuestion}
+                  onUpdate={(updatedQuestion) => setNewSubQuestion(updatedQuestion)}
                   onDelete={() => {
                     setNewSubQuestion(null);
                     setShowSubQuestionForm(null);
@@ -208,7 +191,7 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
               </div>
             )}
             
-            {/* Renderizar subpreguntas existentes para esta opción */}
+            {/* Existing sub-questions */}
             {getSubQuestionsForOption(option.id).map((subQuestion) => (
               <div key={subQuestion.id} className="pl-6 mt-2 border-l-2 border-blue-300">
                 <QuestionEditor
@@ -235,43 +218,8 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
           onClick={handleAddOption}
           className="mt-2 text-sm flex items-center text-green-600 hover:text-green-800"
         >
-          <Plus size={14} className="mr-1" /> {t('add_option')}
+          <Plus size={14} className="mr-1" /> Agregar Opción
         </button>
-      </div>
-    );
-  };
-  
-  // Renderizar configuración para Power BI
-  const renderPowerBISettings = () => {
-    return (
-      <div className="mt-4 p-3 bg-gray-50 rounded-md">
-        <div className="flex items-center mb-2">
-          <input
-            type="checkbox"
-            id={`powerbi-${question.id}`}
-            checked={question.includeInPowerBI}
-            onChange={(e) => onUpdate({...question, includeInPowerBI: e.target.checked})}
-            className="mr-2 h-4 w-4 text-green-600 focus:ring-green-500 rounded"
-          />
-          <label htmlFor={`powerbi-${question.id}`} className="text-sm text-gray-700">
-            {t('include_in_power_bi')}
-          </label>
-        </div>
-        
-        {question.includeInPowerBI && (
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">
-              {t('power_bi_field')}
-            </label>
-            <input
-              type="text"
-              value={question.powerBIFieldName || ''}
-              onChange={(e) => onUpdate({...question, powerBIFieldName: e.target.value})}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-              placeholder="Nombre del campo en Power BI"
-            />
-          </div>
-        )}
       </div>
     );
   };
@@ -340,7 +288,7 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('question_text')}
+              Texto de la pregunta
             </label>
             <input
               type="text"
@@ -354,19 +302,19 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('question_type')}
+                Tipo de pregunta
               </label>
               <select
                 value={question.type}
                 onChange={(e) => handleTypeChange(e.target.value as QuestionType)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               >
-                <option value="text">{t('text')}</option>
-                <option value="number">{t('number')}</option>
-                <option value="select">{t('select')}</option>
-                <option value="multiselect">{t('multiselect')}</option>
-                <option value="date">{t('date')}</option>
-                <option value="boolean">{t('boolean')}</option>
+                <option value="text">Texto</option>
+                <option value="number">Número</option>
+                <option value="select">Selección</option>
+                <option value="multiselect">Selección Múltiple</option>
+                <option value="date">Fecha</option>
+                <option value="boolean">Sí/No</option>
               </select>
             </div>
             
@@ -379,16 +327,12 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({
                 className="mr-2 h-5 w-5 text-green-600 focus:ring-green-500 rounded"
               />
               <label htmlFor={`required-${question.id}`} className="text-sm text-gray-700">
-                {t('question_required')}
+                Obligatorio
               </label>
             </div>
           </div>
           
-          {/* Renderizar opciones para preguntas de selección */}
           {renderOptions()}
-          
-          {/* Configuración para Power BI */}
-          {renderPowerBISettings()}
         </div>
       )}
     </div>
