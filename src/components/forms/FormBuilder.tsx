@@ -14,35 +14,33 @@ const FormBuilder: React.FC = () => {
   const { loadForm, saveForm, currentForm, isLoading } = useForm();
   const { t } = useTranslation();
   
-  const [formData, setFormData] = useState<{
-    name: string;
-    description: string;
-    questions: Question[];
-  }>({
+  const initialFormState = {
     name: '',
     description: '',
     questions: []
-  });
+  };
   
-  // Cargar formulario existente si estamos editando
+  const [formData, setFormData] = useState(initialFormState);
+  
   useEffect(() => {
     if (id) {
       loadForm(id);
+    } else {
+      // Reset form when creating a new one
+      setFormData(initialFormState);
     }
   }, [id]);
   
-  // Actualizar estado local cuando se carga el formulario
   useEffect(() => {
-    if (currentForm) {
+    if (currentForm && id) {
       setFormData({
         name: currentForm.name,
         description: currentForm.description,
         questions: currentForm.questions
       });
     }
-  }, [currentForm]);
+  }, [currentForm, id]);
   
-  // Agregar nueva pregunta
   const handleAddQuestion = () => {
     const newQuestion: Question = {
       id: uuidv4(),
@@ -52,115 +50,126 @@ const FormBuilder: React.FC = () => {
       includeInPowerBI: false
     };
     
-    setFormData({
-      ...formData,
-      questions: [...formData.questions, newQuestion]
-    });
+    setFormData(prev => ({
+      ...prev,
+      questions: [...prev.questions, newQuestion]
+    }));
   };
   
-  // Actualizar pregunta existente
   const handleUpdateQuestion = (updatedQuestion: Question) => {
-    setFormData({
-      ...formData,
-      questions: formData.questions.map(q => 
-        q.id === updatedQuestion.id ? updatedQuestion : q
-      )
-    });
-  };
-  
-  // Eliminar pregunta
-  const handleDeleteQuestion = (questionId: string) => {
-    // Encontrar todas las subpreguntas relacionadas para eliminarlas también
-    const getAllSubQuestionIds = (qId: string): string[] => {
-      const subQuestions: string[] = [];
-      
-      // Buscar en todas las preguntas
-      formData.questions.forEach(q => {
-        // Si esta pregunta es una subpregunta de la pregunta que queremos eliminar
-        if (q.parentId === qId) {
-          subQuestions.push(q.id);
-          // Recursivamente buscar subpreguntas de esta subpregunta
-          subQuestions.push(...getAllSubQuestionIds(q.id));
-        }
-        
-        // Buscar en las opciones si es una pregunta de selección
-        if (q.options) {
-          q.options.forEach(opt => {
-            // Si alguna opción tiene subpreguntas que dependen de la pregunta a eliminar
-            if (opt.subQuestions) {
-              opt.subQuestions.forEach(subQ => {
-                if (subQ.parentId === qId) {
-                  subQuestions.push(subQ.id);
-                  subQuestions.push(...getAllSubQuestionIds(subQ.id));
-                }
-              });
-            }
-          });
-        }
-      });
-      
-      return subQuestions;
+    // Ensure the question has a valid ID
+    const questionWithValidId = {
+      ...updatedQuestion,
+      id: updatedQuestion.id || uuidv4()
     };
     
-    const subQuestionIds = getAllSubQuestionIds(questionId);
-    const allIdsToRemove = [questionId, ...subQuestionIds];
-    
-    setFormData({
-      ...formData,
-      questions: formData.questions.filter(q => !allIdsToRemove.includes(q.id))
+    setFormData(prev => {
+      // If this is a new sub-question being added
+      if (!prev.questions.find(q => q.id === questionWithValidId.id)) {
+        return {
+          ...prev,
+          questions: [...prev.questions, questionWithValidId]
+        };
+      }
+      
+      // If this is an existing question being updated
+      return {
+        ...prev,
+        questions: prev.questions.map(q => 
+          q.id === questionWithValidId.id ? questionWithValidId : q
+        )
+      };
     });
   };
   
-  // Mover pregunta hacia arriba
+  const handleDeleteQuestion = (questionId: string) => {
+    setFormData(prev => {
+      const questionsToDelete = new Set<string>();
+      
+      // Find the question and all its sub-questions recursively
+      const findQuestionsToDelete = (qId: string) => {
+        questionsToDelete.add(qId);
+        prev.questions.forEach(q => {
+          if (q.parentId === qId) {
+            findQuestionsToDelete(q.id);
+          }
+        });
+      };
+      
+      findQuestionsToDelete(questionId);
+      
+      return {
+        ...prev,
+        questions: prev.questions.filter(q => !questionsToDelete.has(q.id))
+      };
+    });
+  };
+  
   const handleMoveQuestionUp = (index: number) => {
     if (index === 0) return;
     
-    const updatedQuestions = [...formData.questions];
-    [updatedQuestions[index], updatedQuestions[index - 1]] = 
-      [updatedQuestions[index - 1], updatedQuestions[index]];
-    
-    setFormData({
-      ...formData,
-      questions: updatedQuestions
+    setFormData(prev => {
+      const updatedQuestions = [...prev.questions];
+      [updatedQuestions[index], updatedQuestions[index - 1]] = 
+        [updatedQuestions[index - 1], updatedQuestions[index]];
+      
+      return {
+        ...prev,
+        questions: updatedQuestions
+      };
     });
   };
   
-  // Mover pregunta hacia abajo
   const handleMoveQuestionDown = (index: number) => {
-    if (index === formData.questions.length - 1) return;
-    
-    const updatedQuestions = [...formData.questions];
-    [updatedQuestions[index], updatedQuestions[index + 1]] = 
-      [updatedQuestions[index + 1], updatedQuestions[index]];
-    
-    setFormData({
-      ...formData,
-      questions: updatedQuestions
+    setFormData(prev => {
+      if (index === prev.questions.length - 1) return prev;
+      
+      const updatedQuestions = [...prev.questions];
+      [updatedQuestions[index], updatedQuestions[index + 1]] = 
+        [updatedQuestions[index + 1], updatedQuestions[index]];
+      
+      return {
+        ...prev,
+        questions: updatedQuestions
+      };
     });
   };
   
-  // Guardar formulario
   const handleSaveForm = async () => {
     if (!formData.name.trim()) {
       toast.error('El nombre del formulario es obligatorio');
       return;
     }
+
+    // If we're editing and the form hasn't loaded yet, show an error
+    if (id && !currentForm) {
+      toast.error('Error al cargar el formulario. Por favor, intente nuevamente.');
+      return;
+    }
     
     try {
-      // Filtrar preguntas sin texto
-      const validQuestions = formData.questions.filter(q => q.text.trim() !== '');
+      // First ensure all questions have valid IDs, then filter out empty ones
+      const validQuestions = formData.questions
+        .map(q => ({
+          ...q,
+          id: q.id || uuidv4() // Ensure each question has a valid ID
+        }))
+        .filter(q => q.text.trim() !== '');
       
-      // Serializar los datos del formulario para asegurar tipos de datos válidos
-      const formToSave = JSON.parse(JSON.stringify({
+      const formToSave = {
         ...formData,
         questions: validQuestions,
-        id // Si id existe, estamos actualizando
-      }));
+        id: id || uuidv4() // Ensure form has a valid ID whether new or existing
+      };
       
       const savedId = await saveForm(formToSave);
-      toast.success(t('form_saved'));
+      toast.success('Formulario guardado correctamente');
       
-      // Redirigir a la vista previa
+      // Reset form data if creating a new form
+      if (!id) {
+        setFormData(initialFormState);
+      }
+      
       navigate(`/vista-previa/${savedId}`);
     } catch (error) {
       console.error('Error saving form:', error);
@@ -168,7 +177,6 @@ const FormBuilder: React.FC = () => {
     }
   };
   
-  // Obtener solo las preguntas principales (no subpreguntas)
   const mainQuestions = formData.questions.filter(q => !q.parentId);
   
   if (isLoading && id) {
@@ -183,20 +191,19 @@ const FormBuilder: React.FC = () => {
     <div className="container mx-auto">
       <div className="bg-white rounded-lg shadow-md p-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-6">
-          {id ? `${t('edit')}: ${formData.name}` : t('create_form')}
+          {id ? `Editar: ${formData.name}` : 'Crear Formulario'}
         </h1>
         
         <div className="space-y-6">
-          {/* Información básica del formulario */}
           <div className="grid grid-cols-1 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('form_name')} <span className="text-red-500">*</span>
+                Nombre del Formulario <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder="Nombre del formulario"
                 required
@@ -205,11 +212,11 @@ const FormBuilder: React.FC = () => {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('form_description')}
+                Descripción
               </label>
               <textarea
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder="Descripción del formulario"
                 rows={3}
@@ -217,7 +224,6 @@ const FormBuilder: React.FC = () => {
             </div>
           </div>
           
-          {/* Lista de preguntas */}
           <div className="mt-8">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-gray-700">Preguntas</h2>
@@ -226,14 +232,14 @@ const FormBuilder: React.FC = () => {
                 onClick={handleAddQuestion}
                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center"
               >
-                <span className="mr-1">+</span> {t('add_question')}
+                <span className="mr-1">+</span> Agregar Pregunta
               </button>
             </div>
             
             {mainQuestions.length === 0 ? (
               <div className="text-center py-8 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">No hay preguntas en este formulario</p>
-                <p className="text-sm text-gray-400 mt-2">Haz clic en "Añadir Pregunta" para comenzar</p>
+                <p className="text-sm text-gray-400 mt-2">Haz clic en "Agregar Pregunta" para comenzar</p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -254,14 +260,13 @@ const FormBuilder: React.FC = () => {
             )}
           </div>
           
-          {/* Botones de acción */}
           <div className="flex justify-end space-x-4 mt-8">
             <button
               type="button"
               onClick={() => navigate('/')}
               className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              {t('cancel')}
+              Cancelar
             </button>
             <button
               type="button"
@@ -269,7 +274,7 @@ const FormBuilder: React.FC = () => {
               className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
               disabled={isLoading}
             >
-              {isLoading ? <Spinner size="sm" /> : t('save_form')}
+              {isLoading ? <Spinner size="sm" /> : 'Guardar'}
             </button>
           </div>
         </div>
