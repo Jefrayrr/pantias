@@ -176,7 +176,7 @@ const FormResponses: React.FC = () => {
               }`}
             >
               {isExporting ? (
-                <Spinner size="sm" color="white" />
+                <Spinner size="sm\" color="white" />
               ) : (
                 <>
                   <Download size={16} className="mr-2" /> Exportar Respuestas
