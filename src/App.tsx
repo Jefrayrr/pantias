@@ -17,8 +17,8 @@ import "./i18n";
 
 function App() {
   return (
-    <DatabaseProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <DatabaseProvider>
         <FormProvider>
           <Router>
             <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
@@ -33,7 +33,7 @@ function App() {
                         <Navbar />
                         <main className="flex-grow p-4 md:p-6">
                           <Routes>
-                            <Route path="/" element={<FormsList />} />
+                            <Route path="/\" element={<FormsList />} />
                             <Route
                               path="/crear"
                               element={
@@ -72,8 +72,8 @@ function App() {
             </div>
           </Router>
         </FormProvider>
-      </AuthProvider>
-    </DatabaseProvider>
+      </DatabaseProvider>
+    </AuthProvider>
   );
 }
 

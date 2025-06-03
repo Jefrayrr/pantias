@@ -59,7 +59,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation();
   
-  const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3000/api';
+  const API_BASE = import.meta.env.VITE_REACT_APP_API_BASE || 'http://localhost:3000/api';
   const { user } = useAuth();
 
   const getAuthHeader = () => {
@@ -81,12 +81,14 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
    * Form Operations
    */
   const fetchForms = async () => {
+    console.log("Usuario antes", user);
     setIsLoading(true);
     try {
       const response = await fetch(`${API_BASE}/forms`, {
         headers: getAuthHeader()
       });
-      
+      console.log("Usuario:", user);
+      console.log("Token:", localStorage.getItem('auth_token'));
       if (!response.ok) {
         throw new Error('Failed to fetch forms');
       }
@@ -273,108 +275,10 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  /**
-   * User Operations
-   */
-  const fetchUsers = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/users`, {
-        headers: getAuthHeader()
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch users');
-      }
-      
-      const data = await response.json();
-      setUsers(data);
-      setError(null);
-    } catch (err) {
-      handleError(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const createUser = async (user: Omit<User, 'id'>) => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/users`, {
-        method: 'POST',
-        headers: getAuthHeader(),
-        body: JSON.stringify(user)
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create user');
-      }
-      
-      const newUser = await response.json();
-      setUsers(prev => [...prev, newUser]);
-      toast.success(t('user_created'));
-      return newUser;
-    } catch (err) {
-      handleError(err);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const updateUser = async (id: string, user: Partial<User>) => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/users/${id}`, {
-        method: 'PUT',
-        headers: getAuthHeader(),
-        body: JSON.stringify(user)
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update user');
-      }
-      
-      const updatedUser = await response.json();
-      setUsers(prev => prev.map(u => u.id === id ? updatedUser : u));
-      toast.success(t('user_updated'));
-      return updatedUser;
-    } catch (err) {
-      handleError(err);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const deleteUser = async (id: string) => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/users/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeader()
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete user');
-      }
-      
-      setUsers(prev => prev.filter(u => u.id !== id));
-      toast.success(t('user_deleted'));
-    } catch (err) {
-      handleError(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Load initial data
   useEffect(() => {
     if (user) {
       fetchForms();
-      fetchUsers();
     }
   }, [user]);
 
@@ -389,15 +293,11 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchForms,
         fetchFormById,
         fetchResponses,
-        fetchUsers,
         createForm,
         updateForm,
         deleteForm,
         createResponse,
-        deleteResponse,
-        createUser,
-        updateUser,
-        deleteUser,
+        deleteResponse
       }}
     >
       {children}

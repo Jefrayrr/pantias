@@ -7,7 +7,7 @@ import Spinner from '../ui/Spinner'; // Componente de carga
 import toast from 'react-hot-toast'; // Notificaciones
 import { ArrowLeft, Save, Download } from 'lucide-react'; // Íconos
 import { exportToExcel } from '../../utils/excelUtils'; // Utilidad para exportar a Excel
-
+console.log("Forms peviu");
 const FormPreview: React.FC = () => {
   // ======================
   // HOOKS Y ESTADO INICIAL
@@ -37,13 +37,23 @@ const FormPreview: React.FC = () => {
 
   // Carga el formulario y respuestas cuando cambian los IDs
   useEffect(() => {
-    if (id) {
-      loadForm(id); // Carga el formulario
-      if (responseId) {
-        loadResponses(id); // Carga respuestas si estamos editando
+    const loadFormData = async () => {
+      try {
+        if (id) {
+          await loadForm(id);
+          if (responseId) {
+            await loadResponses(id);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading form data:', error);
+        toast.error(t('error_loading_form'));
+        navigate('/');
       }
-    }
-  }, [id, responseId]);
+    };
+
+  loadFormData();
+}, [id, responseId]);
 
   // Sincroniza respuestas cuando cambian los datos cargados
   useEffect(() => {
@@ -70,31 +80,36 @@ const FormPreview: React.FC = () => {
    * @returns Array de preguntas visibles
    */
   const getVisibleQuestions = () => {
-    if (!currentForm?.questions) return [];
-    
-    return currentForm.questions.filter(question => {
-      // Preguntas sin padre siempre son visibles
-      if (!question.parentId) return true;
+  if (!currentForm?.questions) return [];
+  
+  const visibleQuestions: Question[] = [];
+  const processedQuestions = new Set<string>();
+  
+  currentForm.questions.forEach(question => {
+    if (!question.parentId && !processedQuestions.has(question.id)) {
+      visibleQuestions.push(question);
+      processedQuestions.add(question.id);
       
-      // Encuentra la pregunta padre
-      const parentQuestion = currentForm.questions.find(q => q.id === question.parentId);
-      if (!parentQuestion) return false;
-      
-      // Respuesta de la pregunta padre
-      const parentResponse = formResponses[parentQuestion.id];
-      
-      // Lógica para diferentes tipos de preguntas padre
-      if (parentQuestion.type === 'select') {
-        return parentResponse === question.parentOptionId;
+      // Procesar subpreguntas si la pregunta padre tiene respuesta
+      if (question.type === 'select' || question.type === 'multiselect') {
+        const parentResponse = formResponses[question.id];
+        if (parentResponse) {
+          currentForm.questions.forEach(subQuestion => {
+            if (subQuestion.parentId === question.id && 
+                ((question.type === 'select' && subQuestion.parentOptionId === parentResponse) ||
+                 (question.type === 'multiselect' && Array.isArray(parentResponse) && 
+                  parentResponse.includes(subQuestion.parentOptionId)))) {
+              visibleQuestions.push(subQuestion);
+              processedQuestions.add(subQuestion.id);
+            }
+          });
+        }
       }
-      
-      if (parentQuestion.type === 'multiselect') {
-        return Array.isArray(parentResponse) && parentResponse.includes(question.parentOptionId);
-      }
-      
-      return false;
-    });
-  };
+    }
+  });
+  
+  return visibleQuestions;
+};
 
   /**
    * Maneja cambios en las respuestas

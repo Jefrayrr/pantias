@@ -1,46 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useForm } from '../../contexts/FormContext'; // Contexto para manejar formularios
-import { useTranslation } from 'react-i18next'; // Internacionalización
-import { v4 as uuidv4 } from 'uuid'; // Generador de IDs únicos
-import { Question, QuestionType, Form } from '../../types'; // Tipos de datos
-import QuestionEditor from './QuestionEditor'; // Componente para editar preguntas
-import Spinner from '../ui/Spinner'; // Componente de carga
-import toast from 'react-hot-toast'; // Notificaciones
+import { useForm } from '../../contexts/FormContext';
+import { useTranslation } from 'react-i18next';
+import { v4 as uuidv4 } from 'uuid';
+import { Question, QuestionType, Form } from '../../types';
+import QuestionEditor from './QuestionEditor';
+import Spinner from '../ui/Spinner';
+import toast from 'react-hot-toast';
 
 const FormBuilder: React.FC = () => {
   // ======================
   // HOOKS Y ESTADO INICIAL
   // ======================
-  const { id } = useParams<{ id: string }>(); // ID del formulario desde la URL
-  const navigate = useNavigate(); // Navegación programática
-  const { loadForm, saveForm, currentForm, isLoading } = useForm(); // Funciones del contexto
-  const { t } = useTranslation(); // Función de traducción
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { loadForm, saveForm, currentForm, isLoading } = useForm();
+  const { t } = useTranslation();
   
-  // Estado inicial del formulario
   const initialFormState = {
     name: '',
     description: '',
     questions: []
   };
   
-  // Estado local del formulario
   const [formData, setFormData] = useState(initialFormState);
 
   // ======================
   // EFECTOS SECUNDARIOS
   // ======================
 
-  // Carga el formulario cuando cambia el ID
+  // Carga el formulario cuando el ID cambia
   useEffect(() => {
     if (id) {
-      loadForm(id); // Carga el formulario existente
+      loadForm(id);
     } else {
-      setFormData(initialFormState); // Resetea para nuevo formulario
+      setFormData(initialFormState);
     }
   }, [id]);
 
-  // Sincroniza el estado local cuando cambia el formulario cargado
+  // Sincroniza el estado local con el formulario cargado
   useEffect(() => {
     if (currentForm && id) {
       setFormData({
@@ -60,9 +58,9 @@ const FormBuilder: React.FC = () => {
    */
   const handleAddQuestion = () => {
     const newQuestion: Question = {
-      id: uuidv4(), // ID único
+      id: uuidv4(),
       text: '',
-      type: 'text' as QuestionType, // Tipo por defecto
+      type: 'text' as QuestionType,
       required: false,
       includeInPowerBI: false
     };
@@ -80,11 +78,10 @@ const FormBuilder: React.FC = () => {
   const handleUpdateQuestion = (updatedQuestion: Question) => {
     const questionWithValidId = {
       ...updatedQuestion,
-      id: updatedQuestion.id || uuidv4() // Asegura un ID válido
+      id: updatedQuestion.id || uuidv4()
     };
     
     setFormData(prev => {
-      // Si es una pregunta nueva (sin ID en el array)
       if (!prev.questions.find(q => q.id === questionWithValidId.id)) {
         return {
           ...prev,
@@ -92,7 +89,6 @@ const FormBuilder: React.FC = () => {
         };
       }
       
-      // Actualiza la pregunta existente
       return {
         ...prev,
         questions: prev.questions.map(q => 
@@ -108,9 +104,8 @@ const FormBuilder: React.FC = () => {
    */
   const handleDeleteQuestion = (questionId: string) => {
     setFormData(prev => {
-      const questionsToDelete = new Set<string>(); // IDs de preguntas a eliminar
+      const questionsToDelete = new Set<string>();
       
-      // Función recursiva para encontrar todas las subpreguntas
       const findQuestionsToDelete = (qId: string) => {
         questionsToDelete.add(qId);
         prev.questions.forEach(q => {
@@ -134,16 +129,14 @@ const FormBuilder: React.FC = () => {
   // ======================
 
   /**
-   * Reorganiza las preguntas con IDs secuenciales manteniendo jerarquías
+   * Reorganiza preguntas con IDs secuenciales manteniendo jerarquías
    * @param questions - Array de preguntas a reorganizar
    * @returns Array de preguntas reorganizadas
    */
   const reorganizeQuestions = (questions: Question[]): Question[] => {
-    // Separa preguntas principales y secundarias
     const mainQuestions = questions.filter(q => !q.parentId);
     const subQuestions = questions.filter(q => q.parentId);
     
-    // Mapa para agrupar subpreguntas por padre
     const questionsByParent = new Map<string, Question[]>();
     subQuestions.forEach(q => {
       if (!questionsByParent.has(q.parentId!)) {
@@ -152,15 +145,9 @@ const FormBuilder: React.FC = () => {
       questionsByParent.get(q.parentId!)!.push(q);
     });
     
-    /**
-     * Procesa una pregunta y su jerarquía completa
-     * @param question - Pregunta principal
-     * @returns Array con la pregunta y todas sus subpreguntas
-     */
     const processQuestionHierarchy = (question: Question): Question[] => {
       const result: Question[] = [question];
       
-      // Procesa subpreguntas de opciones (para preguntas condicionales)
       if (question.options) {
         question.options.forEach(option => {
           const optionSubQuestions = questionsByParent.get(question.id)?.filter(
@@ -176,13 +163,10 @@ const FormBuilder: React.FC = () => {
       return result;
     };
     
-    // Procesa todas las preguntas principales y sus jerarquías
     const organizedQuestions = mainQuestions.flatMap(q => processQuestionHierarchy(q));
     
-    // Mapea IDs viejos a nuevos (para mantener referencias)
     const idMap = new Map<string, string>();
     
-    // Asigna nuevos IDs secuenciales (q001, q002, etc.)
     return organizedQuestions.map((q, index) => {
       const oldId = q.id;
       const newId = `q${(index + 1).toString().padStart(3, '0')}`;
@@ -198,20 +182,18 @@ const FormBuilder: React.FC = () => {
   };
 
   // ======================
-  // GUARDADO DEL FORMULARIO
+  // GUARDADO DEL FORMULARIO (CORRECCIÓN PRINCIPAL)
   // ======================
 
   /**
-   * Maneja el guardado del formulario
+   * Maneja el guardado del formulario con validaciones y estructura correcta
    */
   const handleSaveForm = async () => {
-    // Validación del nombre
     if (!formData.name.trim()) {
       toast.error(t('El nombre del formulario es obligatorio'));
       return;
     }
 
-    // Validación para edición
     if (id && !currentForm) {
       toast.error(t('El formulario no se encuentra'));
       navigate('/');
@@ -219,29 +201,29 @@ const FormBuilder: React.FC = () => {
     }
     
     try {
-      // Filtra preguntas vacías y asegura IDs válidos
-      const validQuestions = formData.questions
-        .filter(q => q.text.trim() !== '')
-        .map(q => ({
-          ...q,
-          id: q.id || uuidv4()
-        }));
-      
-      // Reorganiza preguntas
-      const organizedQuestions = reorganizeQuestions(validQuestions);
-      
-      // Prepara el formulario para guardar
+      // Prepara los datos para enviar al backend
       const formToSave = {
-        ...formData,
-        questions: organizedQuestions,
-        id: id || uuidv4() // Nuevo ID para formularios nuevos
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        questions: formData.questions
+          .filter(q => q.text.trim() !== '') // Filtra preguntas vacías
+          .map(q => ({
+            ...q,
+            id: q.id || uuidv4(), // Asegura IDs válidos
+            text: q.text.trim() // Limpia texto de preguntas
+          }))
       };
-      
-      // Guarda el formulario
+
+      // Depuración: muestra datos que se enviarán
+      console.log('Preparando para guardar:', JSON.stringify(formToSave, null, 2));
+
+      // Intenta guardar el formulario
       const savedId = await saveForm(formToSave);
+      
+      // Feedback al usuario
       toast.success(t('Formulario guardado correctamente'));
       
-      // Resetea para nuevos formularios
+      // Resetea estado si es nuevo formulario
       if (!id) {
         setFormData(initialFormState);
       }
@@ -249,8 +231,8 @@ const FormBuilder: React.FC = () => {
       // Navega a vista previa
       navigate(`/vista-previa/${savedId}`);
     } catch (error) {
-      console.error('Error saving form:', error);
-      toast.error(t('Error al guardar el formulario'));
+      console.error('Error al guardar el formulario:', error);
+      toast.error(t('Error al guardar el formulario: ') + (error instanceof Error ? error.message : 'Error desconocido'));
     }
   };
 
@@ -261,7 +243,6 @@ const FormBuilder: React.FC = () => {
   // RENDERIZADO
   // ======================
 
-  // Muestra spinner mientras carga
   if (isLoading && id) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -279,9 +260,8 @@ const FormBuilder: React.FC = () => {
         </h1>
         
         <div className="space-y-6">
-          {/* Sección de información básica */}
+          {/* Información básica del formulario */}
           <div className="grid grid-cols-1 gap-6">
-            {/* Campo nombre */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('Nombre del Formulario')} <span className="text-red-500">*</span>
@@ -296,7 +276,6 @@ const FormBuilder: React.FC = () => {
               />
             </div>
             
-            {/* Campo descripción */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('Descripción')}
@@ -315,7 +294,6 @@ const FormBuilder: React.FC = () => {
           <div className="mt-8">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-gray-700">{t('Preguntas')}</h2>
-              {/* Botón agregar pregunta */}
               <button
                 type="button"
                 onClick={handleAddQuestion}
@@ -325,7 +303,6 @@ const FormBuilder: React.FC = () => {
               </button>
             </div>
             
-            {/* Lista de preguntas o mensaje vacío */}
             {mainQuestions.length === 0 ? (
               <div className="text-center py-8 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">{t('No hay preguntas en este formulario')}</p>

@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom';
 import { Edit, Eye, Trash2, BarChart, Download } from 'lucide-react'; // Íconos
 import { useForm } from '../../contexts/FormContext'; // Contexto de formularios
 import { useAuth } from '../../contexts/AuthContext'; // Contexto de autenticación
+//import { useDatabase } from './DatabaseContext';
 import { useTranslation } from 'react-i18next'; // Internacionalización
 import { exportToExcel } from '../../utils/excelUtils'; // Utilidad para exportar
 import ConfirmDialog from '../ui/ConfirmDialog'; // Diálogo de confirmación
 import Spinner from '../ui/Spinner'; // Componente de carga
-
+console.log("Forms cargando");
 const FormsList: React.FC = () => {
   // ======================
   // HOOKS Y ESTADO
@@ -35,14 +36,26 @@ const FormsList: React.FC = () => {
   // Carga los formularios al montar el componente
   useEffect(() => {
     loadForms();
+    console.log("Forms cargados:", forms);
   }, []);
 
   // Carga las respuestas para cada formulario
+  // En FormsList.tsx, modifica el useEffect para cargar respuestas:
   useEffect(() => {
-    forms.forEach(form => {
-      loadResponses(form.id);
-    });
-  }, [forms]);
+    const loadAllResponses = async () => {
+      for (const form of forms) {
+        try {
+          await loadResponses(form.id);
+        } catch (error) {
+          console.error(`Error loading responses for form ${form.id}:`, error);
+        }
+      }
+    };
+    
+    if (forms.length > 0) {
+      loadAllResponses();
+    }
+  }, [forms]); // Solo se ejecuta cuando forms cambia
 
   // ======================
   // FUNCIONES UTILITARIAS

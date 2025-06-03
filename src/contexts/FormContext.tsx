@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
 
-// Acciones
+// Tipos de acciones para el reducer
 type FormAction = 
   | { type: 'SET_FORMS'; payload: Form[] }
   | { type: 'SET_CURRENT_FORM'; payload: Form | null }
@@ -18,7 +18,7 @@ type FormAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null };
 
-// Estado inicial
+// Estado inicial del contexto
 const initialState: FormContextState = {
   forms: [],
   currentForm: null,
@@ -27,7 +27,7 @@ const initialState: FormContextState = {
   error: null
 };
 
-// Reducer (se mantiene igual ya que solo maneja el estado local)
+// Reducer para manejar el estado
 const formReducer = (state: FormContextState, action: FormAction): FormContextState => {
   switch (action.type) {
     case 'SET_FORMS':
@@ -88,7 +88,7 @@ const formReducer = (state: FormContextState, action: FormAction): FormContextSt
   }
 };
 
-// Contexto
+// Definición del contexto
 interface FormContextProps extends FormContextState {
   loadForms: () => Promise<void>;
   loadForm: (id: string) => Promise<void>;
@@ -105,6 +105,7 @@ interface FormContextProps extends FormContextState {
 
 const FormContext = createContext<FormContextProps | undefined>(undefined);
 
+// Hook personalizado para usar el contexto
 export const useForm = () => {
   const context = useContext(FormContext);
   if (!context) {
@@ -113,13 +114,14 @@ export const useForm = () => {
   return context;
 };
 
+// Proveedor del contexto
 export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(formReducer, initialState);
   const { user } = useAuth();
   const { t } = useTranslation();
-  const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3000/api';
+  const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
 
-  // Cargar formularios al iniciar
+  // Cargar formularios cuando el usuario cambia
   useEffect(() => {
     if (user) {
       loadForms();
@@ -127,7 +129,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user]);
 
   /**
-   * Carga todos los formularios desde PostgreSQL
+   * Carga todos los formularios desde la API
    */
   const loadForms = async () => {
     try {
@@ -140,7 +142,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (!response.ok) {
-        throw new Error('Error al cargar formularios');
+        throw new Error(t('error_loading_forms'));
       }
       
       const forms = await response.json();
@@ -168,7 +170,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (!response.ok) {
-        throw new Error('Formulario no encontrado');
+        throw new Error(t('form_not_found'));
       }
       
       const form = await response.json();
@@ -196,7 +198,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (!response.ok) {
-        throw new Error('Error al cargar respuestas');
+        throw new Error(t('error_loading_responses'));
       }
       
       const responses = await response.json();
@@ -211,7 +213,9 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Guarda o actualiza un formulario en PostgreSQL
+   * Guarda o actualiza un formulario en la API
+   * @param formData - Datos del formulario a guardar
+   * @returns Promise con el ID del formulario guardado
    */
   const saveForm = async (
     formData: Omit<Form, 'id' | 'createdAt' | 'updatedAt' | 'version'> & { id?: string }
@@ -219,6 +223,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
+      // Configuración de la petición
       let url = `${API_BASE}/forms`;
       let method = 'POST';
       
@@ -227,22 +232,38 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
         method = 'PUT';
       }
       
+      // Validación de datos
+      if (!formData.name || !formData.questions) {
+        throw new Error(t('form_name_and_questions_required'));
+      }
+      
+      // Prepara el cuerpo de la petición
+      const body = {
+        name: formData.name,
+        description: formData.description || '',
+        questions: formData.questions
+      };
+      
+      console.log('Enviando formulario a:', url, 'con método:', method);
+      console.log('Datos del formulario:', JSON.stringify(body, null, 2));
+      
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(body)
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al guardar el formulario');
+        throw new Error(errorData.message || t('error_saving_form'));
       }
       
       const savedForm = await response.json();
       
+      // Actualiza el estado según si es nuevo o actualización
       if (formData.id) {
         dispatch({ type: 'UPDATE_FORM', payload: savedForm });
       } else {
@@ -250,13 +271,13 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       dispatch({ type: 'SET_CURRENT_FORM', payload: savedForm });
-      toast.success(t('form_saved'));
+      toast.success(t('form_saved_successfully'));
       
       return savedForm.id;
     } catch (error) {
       console.error('Error saving form:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
-      toast.error(t('error_saving_form'));
+      toast.error(error.message || t('error_saving_form'));
       throw error;
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -264,7 +285,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Elimina un formulario de PostgreSQL
+   * Elimina un formulario de la API
    */
   const deleteForm = async (id: string) => {
     try {
@@ -278,11 +299,11 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (!response.ok) {
-        throw new Error('Error al eliminar el formulario');
+        throw new Error(t('error_deleting_form'));
       }
       
       dispatch({ type: 'DELETE_FORM', payload: id });
-      toast.success(t('form_deleted'));
+      toast.success(t('form_deleted_successfully'));
     } catch (error) {
       console.error('Error deleting form:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
@@ -293,17 +314,20 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Guarda una respuesta en PostgreSQL
+   * Guarda una respuesta de formulario en la API
    */
   const saveResponse = async (responseData: Omit<FormResponse, 'id' | 'createdAt'>) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
+      // Prepara los datos de la respuesta
       const responseToSave = {
         ...responseData,
         id: uuidv4(),
         createdAt: new Date().toISOString()
       };
+      
+      console.log('Guardando respuesta:', responseToSave);
       
       const response = await fetch(`${API_BASE}/responses`, {
         method: 'POST',
@@ -316,17 +340,18 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al guardar la respuesta');
+        throw new Error(errorData.message || t('error_saving_response'));
       }
       
       const savedResponse = await response.json();
       dispatch({ type: 'ADD_RESPONSE', payload: savedResponse });
+      toast.success(t('response_saved_successfully'));
       
       return savedResponse.id;
     } catch (error) {
       console.error('Error saving response:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
-      toast.error(t('error_saving_response'));
+      toast.error(error.message || t('error_saving_response'));
       throw error;
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -334,7 +359,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Elimina una respuesta de PostgreSQL
+   * Elimina una respuesta de formulario de la API
    */
   const deleteResponse = async (formId: string, responseId: string) => {
     try {
@@ -348,11 +373,11 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (!response.ok) {
-        throw new Error('Error al eliminar la respuesta');
+        throw new Error(t('error_deleting_response'));
       }
       
       dispatch({ type: 'DELETE_RESPONSE', payload: { formId, responseId } });
-      toast.success(t('response_deleted'));
+      toast.success(t('response_deleted_successfully'));
     } catch (error) {
       console.error('Error deleting response:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
@@ -363,7 +388,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Importa múltiples formularios a PostgreSQL
+   * Importa múltiples formularios a la API
    */
   const importForms = async (formsData: Form[]) => {
     try {
@@ -380,11 +405,11 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al importar formularios');
+        throw new Error(errorData.message || t('error_importing_forms'));
       }
       
       await loadForms();
-      toast.success(t('import_success'));
+      toast.success(t('forms_imported_successfully'));
     } catch (error) {
       console.error('Error importing forms:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
@@ -395,7 +420,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Importa múltiples respuestas a PostgreSQL
+   * Importa múltiples respuestas a la API
    */
   const importResponses = async (responsesData: FormResponse[]) => {
     try {
@@ -412,7 +437,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al importar respuestas');
+        throw new Error(errorData.message || t('error_importing_responses'));
       }
       
       // Recargar respuestas para los formularios afectados
@@ -421,7 +446,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await loadResponses(formId);
       }
       
-      toast.success(t('import_success'));
+      toast.success(t('responses_imported_successfully'));
     } catch (error) {
       console.error('Error importing responses:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
@@ -432,7 +457,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Exporta formularios desde PostgreSQL
+   * Exporta todos los formularios desde la API
    */
   const exportForms = async () => {
     try {
@@ -445,10 +470,11 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (!response.ok) {
-        throw new Error('Error al exportar formularios');
+        throw new Error(t('error_exporting_forms'));
       }
       
       const forms = await response.json();
+      toast.success(t('forms_exported_successfully'));
       return forms;
     } catch (error) {
       console.error('Error exporting forms:', error);
@@ -461,7 +487,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Exporta respuestas de un formulario específico desde PostgreSQL
+   * Exporta respuestas de un formulario específico desde la API
    */
   const exportFormResponses = async (formId: string) => {
     try {
@@ -474,10 +500,11 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (!response.ok) {
-        throw new Error('Error al exportar respuestas');
+        throw new Error(t('error_exporting_responses'));
       }
       
       const responses = await response.json();
+      toast.success(t('responses_exported_successfully'));
       return responses;
     } catch (error) {
       console.error('Error exporting responses:', error);
@@ -489,6 +516,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Valor del contexto que se proveerá a los componentes hijos
   const value = {
     ...state,
     loadForms,
