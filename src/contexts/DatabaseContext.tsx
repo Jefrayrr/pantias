@@ -59,7 +59,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation();
   
-  const API_BASE = import.meta.env.VITE_REACT_APP_API_BASE || 'http://localhost:3000/api';
+  const API_BASE = import.meta.env.VITE_REACT_APP_API_BASE || 'http://localhost/api';
   const { user } = useAuth();
 
   const getAuthHeader = () => {

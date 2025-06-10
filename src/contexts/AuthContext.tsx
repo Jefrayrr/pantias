@@ -139,7 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const response = await fetch('http://localhost:3000/api/auth/login', {
+      const response = await fetch('http://localhost/api/auth/login', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -191,7 +191,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const payload = { username, password, role };
     console.log('📦 Enviando datos al backend:', payload);
 
-    const response = await fetch('http://localhost:3000/api/auth/register', {
+    const response = await fetch('http://localhost/api/auth/register', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -199,7 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify(payload)
     });
 
-    console.log('📡 Solicitud enviada a: http://localhost:3000/api/auth/register');
+    console.log('📡 Solicitud enviada a: http://localhost/api/auth/register');
     console.log('📨 Esperando respuesta del backend...');
 
     const data = await response.json();
