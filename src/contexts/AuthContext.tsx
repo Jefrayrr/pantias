@@ -4,6 +4,12 @@ import { jwtDecode } from 'jwt-decode';
 import toast from 'react-hot-toast';
 
 // ======================
+// CONFIGURACIÓN DE API
+// ======================
+
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost/api';
+
+// ======================
 // TIPOS Y CONFIGURACIONES
 // ======================
 
@@ -139,7 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const response = await fetch('http://localhost/api/auth/login', {
+      const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -191,7 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const payload = { username, password, role };
     console.log('📦 Enviando datos al backend:', payload);
 
-    const response = await fetch('http://localhost/api/auth/register', {
+    const response = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -199,7 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify(payload)
     });
 
-    console.log('📡 Solicitud enviada a: http://localhost/api/auth/register');
+    console.log(`📡 Solicitud enviada a: ${API_BASE}/auth/register`);
     console.log('📨 Esperando respuesta del backend...');
 
     const data = await response.json();
