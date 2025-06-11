@@ -1,43 +1,27 @@
 <?php
-require_once __DIR__ . '/../vendor/autoload.php';
-
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
-
 /**
- * Authentication middleware
+ * Simple authentication middleware without JWT
  */
 class AuthMiddleware {
-    private $secret_key;
-
+    
     public function __construct() {
-        $this->secret_key = $_ENV['JWT_SECRET'] ?? 'your-secret-key-here';
+        // Start session if not already started
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
     }
 
     /**
-     * Authenticate JWT token
+     * Simple session-based authentication
      */
     public function authenticate() {
-        $headers = getallheaders();
-        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
-        
-        if (empty($authHeader)) {
+        if (!isset($_SESSION['user'])) {
             http_response_code(401);
-            echo json_encode(['message' => 'No token provided']);
+            echo json_encode(['message' => 'No session found']);
             exit();
         }
 
-        // Extract token from "Bearer <token>"
-        $token = str_replace('Bearer ', '', $authHeader);
-        
-        try {
-            $decoded = JWT::decode($token, new Key($this->secret_key, 'HS256'));
-            return (array) $decoded;
-        } catch (Exception $e) {
-            http_response_code(403);
-            echo json_encode(['message' => 'Invalid token']);
-            exit();
-        }
+        return $_SESSION['user'];
     }
 
     /**

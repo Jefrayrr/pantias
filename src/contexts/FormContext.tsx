@@ -119,7 +119,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [state, dispatch] = useReducer(formReducer, initialState);
   const { user } = useAuth();
   const { t } = useTranslation();
-  const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
+  const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost/api';
 
   // Cargar formularios cuando el usuario cambia
   useEffect(() => {
@@ -136,9 +136,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const response = await fetch(`${API_BASE}/forms`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
+        credentials: 'include' // Include session cookies
       });
       
       if (!response.ok) {
@@ -147,7 +145,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const forms = await response.json();
       dispatch({ type: 'SET_FORMS', payload: forms });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading forms:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
       toast.error(t('error_loading_forms'));
@@ -164,9 +162,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const response = await fetch(`${API_BASE}/forms/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
+        credentials: 'include'
       });
       
       if (!response.ok) {
@@ -175,7 +171,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const form = await response.json();
       dispatch({ type: 'SET_CURRENT_FORM', payload: form });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading form:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
       toast.error(t('error_loading_form'));
@@ -192,9 +188,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const response = await fetch(`${API_BASE}/forms/${formId}/responses`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
+        credentials: 'include'
       });
       
       if (!response.ok) {
@@ -203,7 +197,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const responses = await response.json();
       dispatch({ type: 'SET_RESPONSES', payload: { formId, responses } });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading responses:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
       toast.error(t('error_loading_responses'));
@@ -250,9 +244,9 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await fetch(url, {
         method,
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(body)
       });
       
@@ -274,7 +268,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.success(t('form_saved_successfully'));
       
       return savedForm.id;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving form:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
       toast.error(error.message || t('error_saving_form'));
@@ -293,9 +287,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const response = await fetch(`${API_BASE}/forms/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
+        credentials: 'include'
       });
       
       if (!response.ok) {
@@ -304,7 +296,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       dispatch({ type: 'DELETE_FORM', payload: id });
       toast.success(t('form_deleted_successfully'));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting form:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
       toast.error(t('error_deleting_form'));
@@ -332,9 +324,9 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await fetch(`${API_BASE}/responses`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(responseToSave)
       });
       
@@ -348,7 +340,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.success(t('response_saved_successfully'));
       
       return savedResponse.id;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving response:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
       toast.error(error.message || t('error_saving_response'));
@@ -367,9 +359,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const response = await fetch(`${API_BASE}/responses/${responseId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
+        credentials: 'include'
       });
       
       if (!response.ok) {
@@ -378,7 +368,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       dispatch({ type: 'DELETE_RESPONSE', payload: { formId, responseId } });
       toast.success(t('response_deleted_successfully'));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting response:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
       toast.error(t('error_deleting_response'));
@@ -397,9 +387,9 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await fetch(`${API_BASE}/forms/import`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(formsData)
       });
       
@@ -410,7 +400,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       await loadForms();
       toast.success(t('forms_imported_successfully'));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error importing forms:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
       toast.error(t('error_importing_forms'));
@@ -429,9 +419,9 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await fetch(`${API_BASE}/responses/import`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(responsesData)
       });
       
@@ -447,7 +437,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       toast.success(t('responses_imported_successfully'));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error importing responses:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
       toast.error(t('error_importing_responses'));
@@ -464,9 +454,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const response = await fetch(`${API_BASE}/forms/export`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
+        credentials: 'include'
       });
       
       if (!response.ok) {
@@ -476,7 +464,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const forms = await response.json();
       toast.success(t('forms_exported_successfully'));
       return forms;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error exporting forms:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
       toast.error(t('error_exporting_forms'));
@@ -494,9 +482,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const response = await fetch(`${API_BASE}/forms/${formId}/responses/export`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
+        credentials: 'include'
       });
       
       if (!response.ok) {
@@ -506,7 +492,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const responses = await response.json();
       toast.success(t('responses_exported_successfully'));
       return responses;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error exporting responses:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
       toast.error(t('error_exporting_responses'));

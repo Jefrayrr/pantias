@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { User, UserRole, AuthContextState } from '../types';
-import { jwtDecode } from 'jwt-decode';
 import toast from 'react-hot-toast';
 
 // ======================
@@ -114,15 +113,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * Efecto para verificar autenticación al cargar la aplicación
    */
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
+    const userData = localStorage.getItem('user_data');
+    if (userData) {
       try {
-        const decoded = jwtDecode<User>(token);
-        dispatch({ type: 'LOGIN_SUCCESS', payload: decoded });
+        const user = JSON.parse(userData);
+        dispatch({ type: 'LOGIN_SUCCESS', payload: user });
       } catch (error) {
-        localStorage.removeItem('auth_token');
-        console.error('Token inválido:', error);
-        toast.error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
+        localStorage.removeItem('user_data');
+        console.error('Invalid user data:', error);
       }
     }
   }, []);
@@ -150,6 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: { 
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for session
         body: JSON.stringify({ username, password }),
       });
 
@@ -158,14 +157,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(errorData.message || 'Credenciales inválidas');
       }
 
-      const { token } = await response.json();
-      localStorage.setItem('auth_token', token);
+      const { user } = await response.json();
       
-      const decoded = jwtDecode<User>(token);
-      dispatch({ type: 'LOGIN_SUCCESS', payload: decoded });
+      // Store user data in localStorage
+      localStorage.setItem('user_data', JSON.stringify(user));
       
-      toast.success(`Bienvenido ${decoded.username}`);
-    } catch (error) {
+      dispatch({ type: 'LOGIN_SUCCESS', payload: user });
+      
+      toast.success(`Bienvenido ${user.username}`);
+    } catch (error: any) {
       dispatch({ type: 'SET_ERROR', payload: error.message });
       toast.error(error.message || 'Error al iniciar sesión');
       throw error;
@@ -177,8 +177,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   /**
    * Función para cerrar sesión
    */
-  const logout = () => {
-    localStorage.removeItem('auth_token');
+  const logout = async () => {
+    try {
+      await fetch(`${API_BASE}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+    
+    localStorage.removeItem('user_data');
     dispatch({ type: 'LOGOUT' });
     toast.success('Sesión cerrada correctamente');
   };
@@ -189,59 +198,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * @param password - Contraseña
    * @param role - Rol del usuario (opcional, default 'user')
    */
-  const register = async (username: string, password: string, role: UserRole) => {
-  try {
-    console.log('🔄 Iniciando proceso de registro...');
-    dispatch({ type: 'SET_LOADING', payload: true });
+  const register = async (username: string, password: string, role: UserRole = 'user') => {
+    try {
+      console.log('🔄 Iniciando proceso de registro...');
+      dispatch({ type: 'SET_LOADING', payload: true });
 
-    const payload = { username, password, role };
-    console.log('📦 Enviando datos al backend:', payload);
+      const payload = { username, password, role };
+      console.log('📦 Enviando datos al backend:', payload);
 
-    const response = await fetch(`${API_BASE}/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
+      const response = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include', // Include cookies for session
+        body: JSON.stringify(payload)
+      });
 
-    console.log(`📡 Solicitud enviada a: ${API_BASE}/auth/register`);
-    console.log('📨 Esperando respuesta del backend...');
+      console.log(`📡 Solicitud enviada a: ${API_BASE}/auth/register`);
+      console.log('📨 Esperando respuesta del backend...');
 
-    const data = await response.json();
-    console.log('✅ Respuesta recibida del backend:', data);
+      const data = await response.json();
+      console.log('✅ Respuesta recibida del backend:', data);
 
-    if (!response.ok) {
-      console.error('❌ Error en el registro:', data.message);
-      throw new Error(data.message || 'Registration failed');
-    }
-
-    const token = data.token;
-    console.log('🔐 Token recibido:', token);
-
-    const payloadDecoded = JSON.parse(atob(token.split('.')[1]));
-    console.log('🧾 Payload decodificado del token:', payloadDecoded);
-
-    dispatch({
-      type: 'LOGIN_SUCCESS',
-      payload: {
-        id: payloadDecoded.id,
-        username: payloadDecoded.username,
-        role: payloadDecoded.role
+      if (!response.ok) {
+        console.error('❌ Error en el registro:', data.message);
+        throw new Error(data.message || 'Registration failed');
       }
-    });
 
-    localStorage.setItem('authToken', token);
-    console.log('💾 Token guardado en localStorage');
-  } catch (error: any) {
-    console.error('🚨 Error durante el registro:', error.message);
-    dispatch({ type: 'SET_ERROR', payload: error.message });
-    throw error;
-  } finally {
-    dispatch({ type: 'SET_LOADING', payload: false });
-    console.log('✅ Registro completado (o fallido). Estado actualizado');
-  }
-};
+      const user = data.user;
+      console.log('👤 Usuario registrado:', user);
+
+      // Store user data in localStorage
+      localStorage.setItem('user_data', JSON.stringify(user));
+
+      dispatch({
+        type: 'LOGIN_SUCCESS',
+        payload: user
+      });
+
+      console.log('💾 Datos de usuario guardados en localStorage');
+      toast.success('Registration successful');
+    } catch (error: any) {
+      console.error('🚨 Error durante el registro:', error.message);
+      dispatch({ type: 'SET_ERROR', payload: error.message });
+      throw error;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+      console.log('✅ Registro completado (o fallido). Estado actualizado');
+    }
+  };
 
   // ======================
   // RENDERIZADO

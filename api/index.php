@@ -4,6 +4,9 @@ require_once __DIR__ . '/routes/auth.php';
 require_once __DIR__ . '/routes/forms.php';
 require_once __DIR__ . '/routes/responses.php';
 
+// Start session
+session_start();
+
 // Load environment variables if .env file exists
 if (file_exists(__DIR__ . '/.env')) {
     $lines = file(__DIR__ . '/.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);

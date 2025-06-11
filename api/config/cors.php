@@ -5,7 +5,7 @@
 
 function handleCORS() {
     // Allow from any origin
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? 'http://localhost:4173';
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? 'http://localhost:5173';
     
     header("Access-Control-Allow-Origin: $origin");
     header("Access-Control-Allow-Credentials: true");

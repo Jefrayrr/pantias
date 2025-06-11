@@ -1,20 +1,20 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../vendor/autoload.php';
-
-use Firebase\JWT\JWT;
 
 /**
- * Authentication routes
+ * Authentication routes without JWT
  */
 class AuthRoutes {
     private $db;
-    private $secret_key;
 
     public function __construct() {
         $database = new Database();
         $this->db = $database->getConnection();
-        $this->secret_key = $_ENV['JWT_SECRET'] ?? 'your-secret-key-here';
+        
+        // Start session if not already started
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
     }
 
     /**
@@ -30,6 +30,11 @@ class AuthRoutes {
             case '/login':
                 if ($method === 'POST') {
                     $this->login();
+                }
+                break;
+            case '/logout':
+                if ($method === 'POST') {
+                    $this->logout();
                 }
                 break;
             default:
@@ -80,17 +85,17 @@ class AuthRoutes {
             $stmt->execute([$username]);
             $user = $stmt->fetch();
 
-            // Generate JWT token
-            $payload = [
+            // Store user in session
+            $_SESSION['user'] = [
                 'id' => $user['id'],
                 'username' => $user['username'],
-                'role' => $user['role'],
-                'exp' => time() + (24 * 60 * 60) // 24 hours
+                'role' => $user['role']
             ];
 
-            $token = JWT::encode($payload, $this->secret_key, 'HS256');
-
-            echo json_encode(['token' => $token]);
+            echo json_encode([
+                'success' => true,
+                'user' => $_SESSION['user']
+            ]);
 
         } catch (Exception $e) {
             error_log("Registration error: " . $e->getMessage());
@@ -126,23 +131,36 @@ class AuthRoutes {
                 return;
             }
 
-            // Generate JWT token
-            $payload = [
+            // Store user in session
+            $_SESSION['user'] = [
                 'id' => $user['id'],
                 'username' => $user['username'],
-                'role' => $user['role'],
-                'exp' => time() + (24 * 60 * 60) // 24 hours
+                'role' => $user['role']
             ];
 
-            $token = JWT::encode($payload, $this->secret_key, 'HS256');
-
-            echo json_encode(['token' => $token]);
+            echo json_encode([
+                'success' => true,
+                'user' => $_SESSION['user']
+            ]);
 
         } catch (Exception $e) {
             error_log("Login error: " . $e->getMessage());
             http_response_code(500);
             echo json_encode(['message' => 'Server error']);
         }
+    }
+
+    /**
+     * Logout user
+     */
+    private function logout() {
+        // Destroy session
+        session_destroy();
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Logged out successfully'
+        ]);
     }
 }
 ?>
