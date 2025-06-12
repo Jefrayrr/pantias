@@ -18,11 +18,8 @@ if (file_exists(__DIR__ . '/.env')) {
     }
 }
 
-// Handle CORS
-handleCORS();
-
-// Set content type
-header('Content-Type: application/json');
+// Set basic headers
+setBasicHeaders();
 
 // Get request method and URI
 $method = $_SERVER['REQUEST_METHOD'];

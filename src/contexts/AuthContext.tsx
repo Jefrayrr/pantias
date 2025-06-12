@@ -148,7 +148,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: { 
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // Include cookies for session
         body: JSON.stringify({ username, password }),
       });
 
@@ -180,8 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       await fetch(`${API_BASE}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include'
+        method: 'POST'
       });
     } catch (error) {
       console.error('Error during logout:', error);
@@ -211,7 +209,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: {
           'Content-Type': 'application/json'
         },
-        credentials: 'include', // Include cookies for session
         body: JSON.stringify(payload)
       });
 

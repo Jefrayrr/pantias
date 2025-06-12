@@ -135,9 +135,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const response = await fetch(`${API_BASE}/forms`, {
-        credentials: 'include' // Include session cookies
-      });
+      const response = await fetch(`${API_BASE}/forms`);
       
       if (!response.ok) {
         throw new Error(t('error_loading_forms'));
@@ -161,9 +159,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const response = await fetch(`${API_BASE}/forms/${id}`, {
-        credentials: 'include'
-      });
+      const response = await fetch(`${API_BASE}/forms/${id}`);
       
       if (!response.ok) {
         throw new Error(t('form_not_found'));
@@ -187,9 +183,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const response = await fetch(`${API_BASE}/forms/${formId}/responses`, {
-        credentials: 'include'
-      });
+      const response = await fetch(`${API_BASE}/forms/${formId}/responses`);
       
       if (!response.ok) {
         throw new Error(t('error_loading_responses'));
@@ -246,7 +240,6 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: {
           'Content-Type': 'application/json'
         },
-        credentials: 'include',
         body: JSON.stringify(body)
       });
       
@@ -286,8 +279,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const response = await fetch(`${API_BASE}/forms/${id}`, {
-        method: 'DELETE',
-        credentials: 'include'
+        method: 'DELETE'
       });
       
       if (!response.ok) {
@@ -326,7 +318,6 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: {
           'Content-Type': 'application/json'
         },
-        credentials: 'include',
         body: JSON.stringify(responseToSave)
       });
       
@@ -358,8 +349,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const response = await fetch(`${API_BASE}/responses/${responseId}`, {
-        method: 'DELETE',
-        credentials: 'include'
+        method: 'DELETE'
       });
       
       if (!response.ok) {
@@ -389,7 +379,6 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: {
           'Content-Type': 'application/json'
         },
-        credentials: 'include',
         body: JSON.stringify(formsData)
       });
       
@@ -421,7 +410,6 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: {
           'Content-Type': 'application/json'
         },
-        credentials: 'include',
         body: JSON.stringify(responsesData)
       });
       
@@ -453,9 +441,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const response = await fetch(`${API_BASE}/forms/export`, {
-        credentials: 'include'
-      });
+      const response = await fetch(`${API_BASE}/forms/export`);
       
       if (!response.ok) {
         throw new Error(t('error_exporting_forms'));
@@ -481,9 +467,7 @@ export const FormProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const response = await fetch(`${API_BASE}/forms/${formId}/responses/export`, {
-        credentials: 'include'
-      });
+      const response = await fetch(`${API_BASE}/forms/${formId}/responses/export`);
       
       if (!response.ok) {
         throw new Error(t('error_exporting_responses'));
